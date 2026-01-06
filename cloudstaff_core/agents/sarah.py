@@ -13,10 +13,7 @@ class Sarah:
             "email drafting",
             "calendar scheduling",
             "basic document summarization",
-            "client intake responses",
-            "research support",           # Scope Extension: Business Growth & Strategy
-            "business reporting",
-            "strategy documentation"
+            "client intake responses"
         ]
         # Session memory for admin interactions
         self.memory = []
@@ -36,11 +33,20 @@ class Sarah:
     # ------------------------------
     def is_in_scope(self, user_input: str) -> bool:
         """Check if the task is within administrative scope."""
-        keywords = [
-            "email", "calendar", "summarize", "client intake",
-            "research", "report", "strategy", "growth", "market"
-        ]
+        keywords = ["email", "calendar", "summarize", "client intake"]
         return any(word in user_input.lower() for word in keywords)
+
+    # ------------------------------
+    # Memory Recall
+    # ------------------------------
+    def recall_memory(self, last_n: int = 5) -> str:
+        """Return last N admin interactions."""
+        if not self.memory:
+            return "Memory is empty. No past admin interactions stored yet."
+        response = f"Last {min(last_n, len(self.memory))} admin interactions:\n"
+        for i, entry in enumerate(self.memory[-last_n:], start=1):
+            response += f"{i}. You: {entry['user']}\n   Sarah: {entry['sarah']}\n"
+        return response
 
     # ------------------------------
     # Response Function
@@ -53,21 +59,16 @@ class Sarah:
           - Memory recall for admin interactions
           - Strict refusal for out-of-scope tasks
         """
+        user_lower = user_input.lower()
         in_scope = self.is_in_scope(user_input)
 
         # -------- Memory Recall Handling --------
-        if "recall" in user_input.lower() or "memory" in user_input.lower():
-            if self.memory:
-                response = "Here are your last admin interactions:\n"
-                for i, entry in enumerate(self.memory[-5:], start=1):
-                    response += f"{i}. You: {entry['user']}\n   Sarah: {entry['sarah']}\n"
-            else:
-                response = "Memory is empty. No past admin interactions stored yet."
+        if "recall" in user_lower or "memory" in user_lower:
+            response = self.recall_memory()
 
         # -------- In-Scope Task Handling --------
         elif in_scope:
-            # ---- Email Drafting ----
-            if "email" in user_input.lower():
+            if "email" in user_lower:
                 response = (
                     "Subject: [Your Subject Here]\n\n"
                     "Dear [Recipient],\n\n"
@@ -75,34 +76,29 @@ class Sarah:
                     "Best regards,\n"
                     f"{self.name}"
                 )
-
-            # ---- Document Summarization ----
-            elif "summarize" in user_input.lower():
-                response = "- Bullet point summary here."
-
-            # ---- Calendar Scheduling ----
-            elif "calendar" in user_input.lower():
-                response = "Calendar scheduling acknowledged."
-
-            # ---- Client Intake ----
-            elif "client intake" in user_input.lower():
-                response = "Client intake response ready."
-
-            # ---- Research Support ----
-            elif "research" in user_input.lower():
+            elif "summarize" in user_lower:
+                response = "- Bullet point summary placeholder."
+            elif "calendar" in user_lower:
+                response = "Calendar scheduling acknowledged. Please provide details of date, time, and participants."
+            elif "client intake" in user_lower:
                 response = (
-                    "Research framework ready: gather industry trends, market data, "
-                    "competitor information, and summarize findings concisely."
+                    "Subject: Welcome to [Your Company Name] - Client Intake Response\n\n"
+                    "Dear [Client's Name],\n\n"
+                    "Thank you for reaching out to us. To assist you effectively, "
+                    "please provide the following information:\n"
+                    "1. Full Name\n"
+                    "2. Contact Information (email and phone)\n"
+                    "3. Brief description of your inquiry\n"
+                    "4. Preferred method of contact (email, phone, etc.)\n"
+                    "5. Any deadlines or timelines\n\n"
+                    "Once we receive your response, a member of our team will follow up promptly.\n\n"
+                    "Best regards,\n"
+                    f"{self.name}\n"
+                    "[Your Job Title]\n"
+                    "[Your Company Name]\n"
+                    "[Your Contact Information]\n"
+                    "[Your Company Website]"
                 )
-
-            # ---- Business Reporting / Strategy Documentation ----
-            elif "report" in user_input.lower() or "strategy" in user_input.lower():
-                response = (
-                    "Report/strategy outline prepared. "
-                    "You can now populate details or request a draft structure."
-                )
-
-            # ---- Catch-all for in-scope keywords ----
             else:
                 response = "Task recognized but not fully implemented yet."
 
