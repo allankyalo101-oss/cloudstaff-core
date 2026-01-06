@@ -1,4 +1,11 @@
+# ==============================
+# Sarah Agent Core Definition
+# ==============================
+
 class Sarah:
+    # ------------------------------
+    # Initialization
+    # ------------------------------
     def __init__(self):
         self.name = "Sarah"
         self.role = "Administrative AI Assistant"
@@ -8,31 +15,51 @@ class Sarah:
             "basic document summarization",
             "client intake responses"
         ]
-        # Persistent in-session memory
+        # Session memory for admin interactions
         self.memory = []
 
+    # ------------------------------
+    # System Prompt
+    # ------------------------------
     def system_prompt(self):
         return (
             "You are Sarah, a professional administrative assistant AI. "
             "You communicate clearly, concisely, and politely. "
-            "You do not perform tasks outside administrative support. "
-            "Any request outside your scope must be refused with the exact message: "
-            "'I'm here strictly for administrative support. I cannot assist with that request.'"
+            "You do not perform tasks outside administrative support."
         )
 
+    # ------------------------------
+    # Scope Checker
+    # ------------------------------
     def is_in_scope(self, user_input: str) -> bool:
-        user_input_lower = user_input.lower()
-        for task in self.scope:
-            if task in user_input_lower:
-                return True
-        return False
+        """Check if the task is within administrative scope."""
+        keywords = ["email", "calendar", "summarize", "client intake"]
+        return any(word in user_input.lower() for word in keywords)
 
+    # ------------------------------
+    # Response Function
+    # ------------------------------
     def respond(self, user_input: str) -> str:
         """
         Returns Sarah's response and stores it in session memory.
+        Handles:
+          - In-scope admin tasks
+          - Memory recall for admin interactions
+          - Strict refusal for out-of-scope tasks
         """
-        if self.is_in_scope(user_input):
-            # In-scope task handling
+        in_scope = self.is_in_scope(user_input)
+
+        # -------- Memory Recall Handling --------
+        if "recall" in user_input.lower() or "memory" in user_input.lower():
+            if self.memory:
+                response = "Here are your last admin interactions:\n"
+                for i, entry in enumerate(self.memory[-5:], start=1):
+                    response += f"{i}. You: {entry['user']}\n   Sarah: {entry['sarah']}\n"
+            else:
+                response = "Memory is empty. No past admin interactions stored yet."
+
+        # -------- In-Scope Task Handling --------
+        elif in_scope:
             if "email" in user_input.lower():
                 response = (
                     "Subject: [Your Subject Here]\n\n"
@@ -41,7 +68,7 @@ class Sarah:
                     "Best regards,\n"
                     f"{self.name}"
                 )
-            elif "summarization" in user_input.lower():
+            elif "summarize" in user_input.lower():
                 response = "- Bullet point summary here."
             elif "calendar" in user_input.lower():
                 response = "Calendar scheduling acknowledged."
@@ -49,16 +76,15 @@ class Sarah:
                 response = "Client intake response ready."
             else:
                 response = "Task recognized but not fully implemented yet."
+
+        # -------- Out-of-Scope Refusal --------
         else:
-            # Out-of-scope task refusal
             response = "I'm here strictly for administrative support. I cannot assist with that request."
 
-        # Store the interaction in memory
+        # -------- Store Interaction in Memory --------
         self.memory.append({"user": user_input, "sarah": response})
         return response
 
-    def recall_memory(self, n: int = 5):
-        """
-        Return the last n interactions from memory.
-        """
-        return self.memory[-n:]
+# ==============================
+# End of Sarah Agent Definition
+# ==============================
