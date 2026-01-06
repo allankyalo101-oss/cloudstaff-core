@@ -75,39 +75,40 @@ class Sarah:
             f"- Logged actions: {len(self.ledger)}"
         )
 
-    def _handle_report(self) -> str:
-        self._log("report_generated")
+def _handle_report(self) -> str:
+    self._log("report_generated")
 
-        lines = [
-            f"Administrative Report – {self.name}",
-            "-" * 40,
-            f"Current workflow state: {self.workflow_state}",
-            "",
-            "Recorded actions:"
-        ]
+    lines = [
+        f"Administrative Report – {self.name}",
+        "-" * 40,
+        f"Current workflow state: {self.workflow_state}",
+        "",
+        "Recorded actions:"
+    ]
 
-        if not self.ledger:
-            lines.append("- No actions recorded.")
-        else:
-            for i, entry in enumerate(self.ledger, start=1):
-                lines.append(
-                    f"{i}. [{entry['timestamp']}] "
-                    f"{entry['type']} | State: {entry['state']}"
-                )
+    if not self.ledger:
+        lines.append("- No actions recorded.")
+    else:
+        for i, entry in enumerate(self.ledger, start=1):
+            lines.append(
+                f"{i}. [{entry['timestamp']}] "
+                f"{entry['type']} | State: {entry['state']}"
+            )
 
-        lines.append("")
-        lines.append("Next expected step:")
+    lines.append("")
+    lines.append("Next expected step:")
 
-        if self.workflow_state == "intake_completed":
-            lines.append("- Schedule a meeting.")
-        elif self.workflow_state == "meeting_scheduled":
-            lines.append("- Send a follow-up email.")
-        elif self.workflow_state == "follow_up_sent":
-            lines.append("- Await further administrative instruction.")
-        else:
-            lines.append("- Await administrative task.")
+    if self.workflow_state == "intake_completed":
+        lines.append("- Schedule a meeting.")
+    elif self.workflow_state == "meeting_scheduled":
+        lines.append("- Send a follow-up email.")
+    elif self.workflow_state == "follow_up_sent":
+        lines.append("- Await further administrative instruction.")
+    else:
+        lines.append("- Await administrative task.")
 
-        return "\n".join(lines)
+    return "\n".join(lines)
+
 
     def _handle_reset(self) -> str:
         self.workflow_state = "idle"
