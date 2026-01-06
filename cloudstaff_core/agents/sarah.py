@@ -13,26 +13,20 @@ class Sarah:
         self.name = "Sarah"
         self.role = "Administrative AI Assistant"
 
-        # Allowed scope
         self.scope = [
             "email drafting",
             "calendar scheduling",
             "document summarization",
             "client intake",
-            "administrative follow-up"
+            "administrative follow-up",
+            "administrative reporting"
         ]
 
-        # Core memory
         self.memory: List[Dict] = []
-
-        # Administrative ledger (business artifacts)
         self.ledger: List[Dict] = []
 
-        # Context anchors
         self.last_client = None
         self.last_meeting = None
-
-        # Workflow state
         self.workflow_state = "idle"
 
     # ------------------------------
@@ -42,7 +36,7 @@ class Sarah:
         return (
             "You are Sarah, a professional administrative assistant AI. "
             "You operate strictly within administrative support. "
-            "You track tasks, meetings, and follow-ups accurately."
+            "You track, log, and report tasks accurately."
         )
 
     # ------------------------------
@@ -52,7 +46,7 @@ class Sarah:
         keywords = [
             "email", "meeting", "schedule",
             "summarize", "client intake",
-            "follow up"
+            "follow up", "report", "status"
         ]
         return any(k in user_input.lower() for k in keywords)
 
@@ -62,15 +56,14 @@ class Sarah:
     def handle_client_intake(self) -> str:
         self.workflow_state = "intake_completed"
 
-        intake = {
+        self.ledger.append({
             "type": "client_intake",
             "status": "completed"
-        }
-        self.ledger.append(intake)
+        })
 
         return (
-            "Thank you for your inquiry.\n\n"
-            "To proceed, please share:\n"
+            "Client intake initiated.\n\n"
+            "Please provide:\n"
             "1. Full Name\n"
             "2. Company Name\n"
             "3. Email Address\n"
@@ -85,7 +78,6 @@ class Sarah:
     def schedule_meeting(self, user_input: str) -> str:
         date = "[Date]"
         time = "[Time]"
-        platform = "[Platform]"
 
         date_match = re.search(r'on ([\w\s\d]+)', user_input, re.IGNORECASE)
         time_match = re.search(r'at (\d{1,2}:\d{2}\s?(AM|PM)?)', user_input, re.IGNORECASE)
@@ -98,8 +90,7 @@ class Sarah:
         meeting = {
             "type": "meeting",
             "date": date,
-            "time": time,
-            "platform": platform
+            "time": time
         }
 
         self.last_meeting = meeting
@@ -108,7 +99,7 @@ class Sarah:
 
         return (
             f"Meeting scheduled on {date} at {time}.\n"
-            "I will prepare a follow-up email after the meeting."
+            "Follow-up will be prepared upon request."
         )
 
     # ------------------------------
@@ -116,21 +107,20 @@ class Sarah:
     # ------------------------------
     def send_follow_up(self) -> str:
         if self.workflow_state != "meeting_scheduled":
-            return "No meeting on record to follow up on."
+            return "No scheduled meeting found to follow up on."
 
         self.workflow_state = "follow_up_sent"
 
-        follow_up = {
+        self.ledger.append({
             "type": "follow_up_email",
             "status": "sent"
-        }
-        self.ledger.append(follow_up)
+        })
 
         return (
             "Subject: Thank You for the Meeting\n\n"
             "Dear [Client Name],\n\n"
-            "Thank you for taking the time to meet with us.\n"
-            "Please let me know if you need any additional information.\n\n"
+            "Thank you for your time today.\n"
+            "Please let me know if you require any additional information.\n\n"
             "Best regards,\n"
             f"{self.name}"
         )
@@ -141,6 +131,38 @@ class Sarah:
     def summarize_text(self, text: str) -> str:
         sentences = re.split(r'(?<=[.!?])\s+', text.strip())
         return "\n".join(f"- {s}" for s in sentences if s)
+
+    # ------------------------------
+    # Administrative Report
+    # ------------------------------
+    def generate_report(self) -> str:
+        report = [
+            f"Administrative Report – {self.name}",
+            "-" * 35,
+            f"Current workflow state: {self.workflow_state}",
+            "",
+            "Completed actions:"
+        ]
+
+        if not self.ledger:
+            report.append("- No administrative actions recorded.")
+        else:
+            for i, entry in enumerate(self.ledger, start=1):
+                report.append(f"{i}. {entry}")
+
+        report.append("")
+        report.append("Pending next step:")
+
+        if self.workflow_state == "intake_completed":
+            report.append("- Schedule a meeting.")
+        elif self.workflow_state == "meeting_scheduled":
+            report.append("- Send follow-up email.")
+        elif self.workflow_state == "follow_up_sent":
+            report.append("- Await further instructions.")
+        else:
+            report.append("- Await administrative task.")
+
+        return "\n".join(report)
 
     # ------------------------------
     # Main Response Handler
@@ -164,6 +186,9 @@ class Sarah:
         elif "summarize" in user_input.lower():
             content = user_input.replace("summarize", "").strip()
             response = self.summarize_text(content)
+
+        elif "report" in user_input.lower() or "status" in user_input.lower():
+            response = self.generate_report()
 
         elif "email" in user_input.lower():
             response = self.send_follow_up()
