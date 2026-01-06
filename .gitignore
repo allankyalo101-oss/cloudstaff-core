@@ -1,0 +1,9 @@
+# Python cache
+**/__pycache__/
+**/*.py[cod]
+
+# Virtual environment
+venv/
+
+# Optional runtime logs
+cloudstaff_core/logs/
