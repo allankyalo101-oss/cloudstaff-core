@@ -7,3 +7,4 @@ venv/
 
 # Optional runtime logs
 cloudstaff_core/logs/
+.env
