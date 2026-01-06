@@ -13,7 +13,10 @@ class Sarah:
             "email drafting",
             "calendar scheduling",
             "basic document summarization",
-            "client intake responses"
+            "client intake responses",
+            "research support",           # Scope Extension: Business Growth & Strategy
+            "business reporting",
+            "strategy documentation"
         ]
         # Session memory for admin interactions
         self.memory = []
@@ -33,7 +36,10 @@ class Sarah:
     # ------------------------------
     def is_in_scope(self, user_input: str) -> bool:
         """Check if the task is within administrative scope."""
-        keywords = ["email", "calendar", "summarize", "client intake"]
+        keywords = [
+            "email", "calendar", "summarize", "client intake",
+            "research", "report", "strategy", "growth", "market"
+        ]
         return any(word in user_input.lower() for word in keywords)
 
     # ------------------------------
@@ -60,6 +66,7 @@ class Sarah:
 
         # -------- In-Scope Task Handling --------
         elif in_scope:
+            # ---- Email Drafting ----
             if "email" in user_input.lower():
                 response = (
                     "Subject: [Your Subject Here]\n\n"
@@ -68,12 +75,34 @@ class Sarah:
                     "Best regards,\n"
                     f"{self.name}"
                 )
+
+            # ---- Document Summarization ----
             elif "summarize" in user_input.lower():
                 response = "- Bullet point summary here."
+
+            # ---- Calendar Scheduling ----
             elif "calendar" in user_input.lower():
                 response = "Calendar scheduling acknowledged."
+
+            # ---- Client Intake ----
             elif "client intake" in user_input.lower():
                 response = "Client intake response ready."
+
+            # ---- Research Support ----
+            elif "research" in user_input.lower():
+                response = (
+                    "Research framework ready: gather industry trends, market data, "
+                    "competitor information, and summarize findings concisely."
+                )
+
+            # ---- Business Reporting / Strategy Documentation ----
+            elif "report" in user_input.lower() or "strategy" in user_input.lower():
+                response = (
+                    "Report/strategy outline prepared. "
+                    "You can now populate details or request a draft structure."
+                )
+
+            # ---- Catch-all for in-scope keywords ----
             else:
                 response = "Task recognized but not fully implemented yet."
 
