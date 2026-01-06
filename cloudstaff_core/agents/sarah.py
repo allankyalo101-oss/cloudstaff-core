@@ -1,9 +1,12 @@
 # ==============================
 # Sarah Agent – Administrative Workflow Assistant
+# Day 1 – Locked Execution
 # ==============================
 
 import re
+from datetime import datetime
 from typing import List, Dict
+
 
 class Sarah:
     # ------------------------------
@@ -13,42 +16,105 @@ class Sarah:
         self.name = "Sarah"
         self.role = "Administrative AI Assistant"
 
-        self.scope = [
-            "email drafting",
-            "calendar scheduling",
-            "document summarization",
-            "client intake",
-            "administrative follow-up",
-            "administrative reporting"
-        ]
+        # Explicit workflow state
+        self.workflow_state = "idle"
 
+        # Short-term conversational memory (session only)
         self.memory: List[Dict] = []
+
+        # Append-only administrative ledger
         self.ledger: List[Dict] = []
 
+        # Last known entities
         self.last_client = None
         self.last_meeting = None
-        self.workflow_state = "idle"
+
+        # System commands
+        self.system_commands = {"status", "report", "reset"}
 
     # ------------------------------
     # System Prompt
     # ------------------------------
-    def system_prompt(self):
+    def system_prompt(self) -> str:
         return (
             "You are Sarah, a professional administrative assistant AI. "
             "You operate strictly within administrative support. "
-            "You track, log, and report tasks accurately."
+            "You track workflow state, log actions, and report accurately."
         )
 
     # ------------------------------
-    # Scope Checker
+    # Internal Utilities
     # ------------------------------
-    def is_in_scope(self, user_input: str) -> bool:
+    def _log(self, action_type: str, details: Dict = None):
+        self.ledger.append({
+            "timestamp": datetime.utcnow().isoformat(),
+            "state": self.workflow_state,
+            "type": action_type,
+            "details": details or {}
+        })
+
+    def _in_scope(self, user_input: str) -> bool:
         keywords = [
             "email", "meeting", "schedule",
-            "summarize", "client intake",
-            "follow up", "report", "status"
+            "summarize", "summary",
+            "client intake", "intake",
+            "follow up", "follow-up",
+            "report", "status"
         ]
         return any(k in user_input.lower() for k in keywords)
+
+    # ------------------------------
+    # System Command Handlers
+    # ------------------------------
+    def _handle_status(self) -> str:
+        self._log("status_requested")
+        return (
+            f"System Status:\n"
+            f"- Current state: {self.workflow_state}\n"
+            f"- Logged actions: {len(self.ledger)}"
+        )
+
+    def _handle_report(self) -> str:
+        self._log("report_generated")
+
+        lines = [
+            f"Administrative Report – {self.name}",
+            "-" * 40,
+            f"Current workflow state: {self.workflow_state}",
+            "",
+            "Recorded actions:"
+        ]
+
+        if not self.ledger:
+            lines.append("- No actions recorded.")
+        else:
+            for i, entry in enumerate(self.ledger, start=1):
+                lines.append(
+                    f"{i}. [{entry['timestamp']}] "
+                    f"{entry['type']} | State: {entry['state']}"
+                )
+
+        lines.append("")
+        lines.append("Next expected step:")
+
+        if self.workflow_state == "intake_completed":
+            lines.append("- Schedule a meeting.")
+        elif self.workflow_state == "meeting_scheduled":
+            lines.append("- Send a follow-up email.")
+        elif self.workflow_state == "follow_up_sent":
+            lines.append("- Await further administrative instruction.")
+        else:
+            lines.append("- Await administrative task.")
+
+        return "\n".join(lines)
+
+    def _handle_reset(self) -> str:
+        self.workflow_state = "idle"
+        self.memory.clear()
+        self.ledger.clear()
+        self.last_client = None
+        self.last_meeting = None
+        return "System reset complete. Workflow and records cleared."
 
     # ------------------------------
     # Client Intake
@@ -56,10 +122,7 @@ class Sarah:
     def handle_client_intake(self) -> str:
         self.workflow_state = "intake_completed"
 
-        self.ledger.append({
-            "type": "client_intake",
-            "status": "completed"
-        })
+        self._log("client_intake_completed")
 
         return (
             "Client intake initiated.\n\n"
@@ -88,18 +151,18 @@ class Sarah:
             time = time_match.group(1)
 
         meeting = {
-            "type": "meeting",
             "date": date,
             "time": time
         }
 
         self.last_meeting = meeting
         self.workflow_state = "meeting_scheduled"
-        self.ledger.append(meeting)
+
+        self._log("meeting_scheduled", meeting)
 
         return (
             f"Meeting scheduled on {date} at {time}.\n"
-            "Follow-up will be prepared upon request."
+            "You may request a follow-up when ready."
         )
 
     # ------------------------------
@@ -111,16 +174,13 @@ class Sarah:
 
         self.workflow_state = "follow_up_sent"
 
-        self.ledger.append({
-            "type": "follow_up_email",
-            "status": "sent"
-        })
+        self._log("follow_up_sent")
 
         return (
             "Subject: Thank You for the Meeting\n\n"
             "Dear [Client Name],\n\n"
-            "Thank you for your time today.\n"
-            "Please let me know if you require any additional information.\n\n"
+            "Thank you for taking the time to meet with us.\n"
+            "Please let me know if you need any additional information.\n\n"
             "Best regards,\n"
             f"{self.name}"
         )
@@ -129,73 +189,52 @@ class Sarah:
     # Summarization
     # ------------------------------
     def summarize_text(self, text: str) -> str:
+        self._log("summary_generated")
         sentences = re.split(r'(?<=[.!?])\s+', text.strip())
         return "\n".join(f"- {s}" for s in sentences if s)
-
-    # ------------------------------
-    # Administrative Report
-    # ------------------------------
-    def generate_report(self) -> str:
-        report = [
-            f"Administrative Report – {self.name}",
-            "-" * 35,
-            f"Current workflow state: {self.workflow_state}",
-            "",
-            "Completed actions:"
-        ]
-
-        if not self.ledger:
-            report.append("- No administrative actions recorded.")
-        else:
-            for i, entry in enumerate(self.ledger, start=1):
-                report.append(f"{i}. {entry}")
-
-        report.append("")
-        report.append("Pending next step:")
-
-        if self.workflow_state == "intake_completed":
-            report.append("- Schedule a meeting.")
-        elif self.workflow_state == "meeting_scheduled":
-            report.append("- Send follow-up email.")
-        elif self.workflow_state == "follow_up_sent":
-            report.append("- Await further instructions.")
-        else:
-            report.append("- Await administrative task.")
-
-        return "\n".join(report)
 
     # ------------------------------
     # Main Response Handler
     # ------------------------------
     def respond(self, user_input: str) -> str:
-        if not self.is_in_scope(user_input):
-            response = (
-                "I'm here strictly for administrative support. "
-                "I cannot assist with that request."
-            )
+        clean = user_input.strip().lower()
 
-        elif "client intake" in user_input.lower():
-            response = self.handle_client_intake()
-
-        elif "schedule" in user_input.lower() or "meeting" in user_input.lower():
-            response = self.schedule_meeting(user_input)
-
-        elif "follow up" in user_input.lower():
-            response = self.send_follow_up()
-
-        elif "summarize" in user_input.lower():
-            content = user_input.replace("summarize", "").strip()
-            response = self.summarize_text(content)
-
-        elif "report" in user_input.lower() or "status" in user_input.lower():
-            response = self.generate_report()
-
-        elif "email" in user_input.lower():
-            response = self.send_follow_up()
-
+        # ---- System Commands ----
+        if clean in self.system_commands:
+            if clean == "status":
+                response = self._handle_status()
+            elif clean == "report":
+                response = self._handle_report()
+            elif clean == "reset":
+                response = self._handle_reset()
         else:
-            response = "Administrative request acknowledged."
+            # ---- Scope Enforcement ----
+            if not self._in_scope(user_input):
+                response = (
+                    "I'm here strictly for administrative support. "
+                    "I cannot assist with that request."
+                )
 
+            elif "client intake" in clean or "intake" in clean:
+                response = self.handle_client_intake()
+
+            elif "schedule" in clean or "meeting" in clean:
+                response = self.schedule_meeting(user_input)
+
+            elif "follow up" in clean or "follow-up" in clean:
+                response = self.send_follow_up()
+
+            elif "summarize" in clean or "summary" in clean:
+                content = user_input.replace("summarize", "").strip()
+                response = self.summarize_text(content)
+
+            elif "email" in clean:
+                response = self.send_follow_up()
+
+            else:
+                response = "Administrative request acknowledged."
+
+        # ---- Session Memory ----
         self.memory.append({
             "user": user_input,
             "sarah": response
@@ -203,6 +242,7 @@ class Sarah:
 
         return response
 
+
 # ==============================
-# End of Sarah Agent
+# End of Sarah Agent – Day 1
 # ==============================
