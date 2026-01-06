@@ -1,5 +1,5 @@
 # ==============================
-# Sarah Agent Core Definition
+# Sarah Agent – Administrative Workflow Assistant
 # ==============================
 
 import re
@@ -13,24 +13,27 @@ class Sarah:
         self.name = "Sarah"
         self.role = "Administrative AI Assistant"
 
+        # Allowed scope
         self.scope = [
             "email drafting",
             "calendar scheduling",
-            "basic document summarization",
-            "client intake responses"
+            "document summarization",
+            "client intake",
+            "administrative follow-up"
         ]
 
-        # Core administrative memory
+        # Core memory
         self.memory: List[Dict] = []
 
-        # Structured admin intelligence
-        self.sent_emails: List[Dict] = []
-        self.scheduled_meetings: List[Dict] = []
+        # Administrative ledger (business artifacts)
+        self.ledger: List[Dict] = []
 
         # Context anchors
         self.last_client = None
         self.last_meeting = None
-        self.last_participants = []
+
+        # Workflow state
+        self.workflow_state = "idle"
 
     # ------------------------------
     # System Prompt
@@ -38,8 +41,8 @@ class Sarah:
     def system_prompt(self):
         return (
             "You are Sarah, a professional administrative assistant AI. "
-            "You communicate clearly, concisely, and politely. "
-            "You do not perform tasks outside administrative support."
+            "You operate strictly within administrative support. "
+            "You track tasks, meetings, and follow-ups accurately."
         )
 
     # ------------------------------
@@ -47,94 +50,89 @@ class Sarah:
     # ------------------------------
     def is_in_scope(self, user_input: str) -> bool:
         keywords = [
-            "email", "calendar", "meeting",
+            "email", "meeting", "schedule",
             "summarize", "client intake",
-            "follow up", "schedule"
+            "follow up"
         ]
         return any(k in user_input.lower() for k in keywords)
 
     # ------------------------------
-    # Context Resolution
+    # Client Intake
     # ------------------------------
-    def resolve_context(self):
-        return {
-            "client": self.last_client or "[Client Name]",
-            "meeting": self.last_meeting or {
-                "date": "[Date]",
-                "time": "[Time]",
-                "platform": "[Platform]"
-            },
-            "participants": self.last_participants or ["[Participant]"]
+    def handle_client_intake(self) -> str:
+        self.workflow_state = "intake_completed"
+
+        intake = {
+            "type": "client_intake",
+            "status": "completed"
         }
+        self.ledger.append(intake)
 
-    # ------------------------------
-    # Email Composer
-    # ------------------------------
-    def compose_email(self, user_input: str) -> str:
-        context = self.resolve_context()
-
-        subject = "Follow-Up"
-        if "meeting" in user_input.lower():
-            subject = "Meeting Follow-Up"
-
-        email = (
-            f"Subject: {subject}\n\n"
-            f"Dear {context['client']},\n\n"
-            "I hope this message finds you well.\n"
-            "I am following up regarding our recent discussion.\n\n"
-            "Please let me know if you require any additional information.\n\n"
-            "Best regards,\n"
-            f"{self.name}\n"
-            "[Your Position]\n"
-            "[Your Company]\n"
-            "[Your Contact Information]"
+        return (
+            "Thank you for your inquiry.\n\n"
+            "To proceed, please share:\n"
+            "1. Full Name\n"
+            "2. Company Name\n"
+            "3. Email Address\n"
+            "4. Phone Number\n"
+            "5. Nature of Inquiry\n\n"
+            "Once received, I can assist with scheduling a meeting."
         )
-
-        self.sent_emails.append({
-            "recipient": context["client"],
-            "subject": subject
-        })
-
-        self.last_client = context["client"]
-        return email
 
     # ------------------------------
     # Meeting Scheduler
     # ------------------------------
     def schedule_meeting(self, user_input: str) -> str:
-        context = self.resolve_context()
+        date = "[Date]"
+        time = "[Time]"
+        platform = "[Platform]"
 
-        date = context["meeting"]["date"]
-        time = context["meeting"]["time"]
-        platform = context["meeting"]["platform"]
-        participants = context["participants"]
-
-        date_match = re.search(r'on (\w+\s\d{1,2})', user_input, re.IGNORECASE)
-        time_match = re.search(r'at (\d{1,2}:\d{2}\s?(?:AM|PM)?)', user_input, re.IGNORECASE)
-        platform_match = re.search(r'(via|on) (\w+)', user_input, re.IGNORECASE)
+        date_match = re.search(r'on ([\w\s\d]+)', user_input, re.IGNORECASE)
+        time_match = re.search(r'at (\d{1,2}:\d{2}\s?(AM|PM)?)', user_input, re.IGNORECASE)
 
         if date_match:
             date = date_match.group(1)
         if time_match:
             time = time_match.group(1)
-        if platform_match:
-            platform = platform_match.group(2)
 
         meeting = {
+            "type": "meeting",
             "date": date,
             "time": time,
-            "platform": platform,
-            "participants": participants
+            "platform": platform
         }
 
-        self.scheduled_meetings.append(meeting)
         self.last_meeting = meeting
-        self.last_participants = participants
+        self.workflow_state = "meeting_scheduled"
+        self.ledger.append(meeting)
 
         return (
-            f"Meeting scheduled on {date} at {time} via {platform}.\n"
-            f"Participants: {', '.join(participants)}.\n"
-            "I will prepare follow-up communication as needed."
+            f"Meeting scheduled on {date} at {time}.\n"
+            "I will prepare a follow-up email after the meeting."
+        )
+
+    # ------------------------------
+    # Follow-Up Email
+    # ------------------------------
+    def send_follow_up(self) -> str:
+        if self.workflow_state != "meeting_scheduled":
+            return "No meeting on record to follow up on."
+
+        self.workflow_state = "follow_up_sent"
+
+        follow_up = {
+            "type": "follow_up_email",
+            "status": "sent"
+        }
+        self.ledger.append(follow_up)
+
+        return (
+            "Subject: Thank You for the Meeting\n\n"
+            "Dear [Client Name],\n\n"
+            "Thank you for taking the time to meet with us.\n"
+            "Please let me know if you need any additional information.\n\n"
+            "Best regards,\n"
+            f"{self.name}"
         )
 
     # ------------------------------
@@ -148,35 +146,30 @@ class Sarah:
     # Main Response Handler
     # ------------------------------
     def respond(self, user_input: str) -> str:
-        response = ""
-
         if not self.is_in_scope(user_input):
             response = (
                 "I'm here strictly for administrative support. "
                 "I cannot assist with that request."
             )
 
-        elif "email" in user_input.lower() or "follow up" in user_input.lower():
-            response = self.compose_email(user_input)
+        elif "client intake" in user_input.lower():
+            response = self.handle_client_intake()
 
-        elif "meeting" in user_input.lower() or "schedule" in user_input.lower():
+        elif "schedule" in user_input.lower() or "meeting" in user_input.lower():
             response = self.schedule_meeting(user_input)
+
+        elif "follow up" in user_input.lower():
+            response = self.send_follow_up()
 
         elif "summarize" in user_input.lower():
             content = user_input.replace("summarize", "").strip()
             response = self.summarize_text(content)
 
-        elif "client intake" in user_input.lower():
-            response = (
-                "Subject: Welcome to [Your Company Name]\n\n"
-                "Dear [Client Name],\n\n"
-                "Thank you for reaching out. Please provide:\n"
-                "1. Full Name\n2. Company Name\n3. Email\n4. Phone Number\n"
-                "5. Nature of Inquiry\n\n"
-                "We will respond promptly.\n\n"
-                "Best regards,\n"
-                f"{self.name}"
-            )
+        elif "email" in user_input.lower():
+            response = self.send_follow_up()
+
+        else:
+            response = "Administrative request acknowledged."
 
         self.memory.append({
             "user": user_input,
@@ -186,5 +179,5 @@ class Sarah:
         return response
 
 # ==============================
-# End of Sarah Agent Definition
+# End of Sarah Agent
 # ==============================
