@@ -1,6 +1,6 @@
 # ==============================
 # Sarah Agent – Administrative Workflow Assistant
-# Day 1 – Locked Execution
+# Day 1 – Execution Locked
 # ==============================
 
 import re
@@ -19,7 +19,7 @@ class Sarah:
         # Explicit workflow state
         self.workflow_state = "idle"
 
-        # Short-term conversational memory (session only)
+        # Session memory (non-authoritative)
         self.memory: List[Dict] = []
 
         # Append-only administrative ledger
@@ -38,8 +38,9 @@ class Sarah:
     def system_prompt(self) -> str:
         return (
             "You are Sarah, a professional administrative assistant AI. "
-            "You operate strictly within administrative support. "
-            "You track workflow state, log actions, and report accurately."
+            "You execute administrative workflows deterministically, "
+            "log actions, and report accurately. "
+            "You do not request clarification when execution is possible."
         )
 
     # ------------------------------
@@ -121,7 +122,6 @@ class Sarah:
     # ------------------------------
     def handle_client_intake(self) -> str:
         self.workflow_state = "intake_completed"
-
         self._log("client_intake_completed")
 
         return (
@@ -132,23 +132,27 @@ class Sarah:
             "3. Email Address\n"
             "4. Phone Number\n"
             "5. Nature of Inquiry\n\n"
-            "Once received, I can assist with scheduling a meeting."
+            "Once received, a meeting can be scheduled."
         )
 
     # ------------------------------
-    # Meeting Scheduler
+    # Meeting Scheduler (Deterministic)
     # ------------------------------
     def schedule_meeting(self, user_input: str) -> str:
-        date = "[Date]"
-        time = "[Time]"
+        date = "Friday"
+        time = "10:00 AM"
 
         date_match = re.search(r'on ([\w\s\d]+)', user_input, re.IGNORECASE)
-        time_match = re.search(r'at (\d{1,2}:\d{2}\s?(AM|PM)?)', user_input, re.IGNORECASE)
+        time_match = re.search(
+            r'at (\d{1,2}(:\d{2})?\s?(AM|PM)?)',
+            user_input,
+            re.IGNORECASE
+        )
 
         if date_match:
-            date = date_match.group(1)
+            date = date_match.group(1).strip()
         if time_match:
-            time = time_match.group(1)
+            time = time_match.group(1).strip()
 
         meeting = {
             "date": date,
@@ -157,12 +161,11 @@ class Sarah:
 
         self.last_meeting = meeting
         self.workflow_state = "meeting_scheduled"
-
         self._log("meeting_scheduled", meeting)
 
         return (
-            f"Meeting scheduled on {date} at {time}.\n"
-            "You may request a follow-up when ready."
+            f"Meeting successfully scheduled on {date} at {time}.\n"
+            "You may request a follow-up when appropriate."
         )
 
     # ------------------------------
@@ -170,17 +173,16 @@ class Sarah:
     # ------------------------------
     def send_follow_up(self) -> str:
         if self.workflow_state != "meeting_scheduled":
-            return "No scheduled meeting found to follow up on."
+            return "No scheduled meeting available for follow-up."
 
         self.workflow_state = "follow_up_sent"
-
         self._log("follow_up_sent")
 
         return (
             "Subject: Thank You for the Meeting\n\n"
             "Dear [Client Name],\n\n"
-            "Thank you for taking the time to meet with us.\n"
-            "Please let me know if you need any additional information.\n\n"
+            "Thank you for taking the time to meet.\n"
+            "Please let me know if you require any additional information.\n\n"
             "Best regards,\n"
             f"{self.name}"
         )
@@ -207,6 +209,7 @@ class Sarah:
                 response = self._handle_report()
             elif clean == "reset":
                 response = self._handle_reset()
+
         else:
             # ---- Scope Enforcement ----
             if not self._in_scope(user_input):
@@ -215,26 +218,24 @@ class Sarah:
                     "I cannot assist with that request."
                 )
 
-            elif "client intake" in clean or "intake" in clean:
+            # ---- Deterministic Routing ----
+            elif "client intake" in clean or clean == "intake":
                 response = self.handle_client_intake()
 
             elif "schedule" in clean or "meeting" in clean:
                 response = self.schedule_meeting(user_input)
 
-            elif "follow up" in clean or "follow-up" in clean:
+            elif "follow up" in clean or "follow-up" in clean or "email" in clean:
                 response = self.send_follow_up()
 
             elif "summarize" in clean or "summary" in clean:
-                content = user_input.replace("summarize", "").strip()
+                content = re.sub(r'summarize|summary', '', user_input, flags=re.I).strip()
                 response = self.summarize_text(content)
-
-            elif "email" in clean:
-                response = self.send_follow_up()
 
             else:
                 response = "Administrative request acknowledged."
 
-        # ---- Session Memory ----
+        # ---- Session Memory (Non-authoritative) ----
         self.memory.append({
             "user": user_input,
             "sarah": response
@@ -246,4 +247,3 @@ class Sarah:
 # ==============================
 # End of Sarah Agent – Day 1
 # ==============================
-
