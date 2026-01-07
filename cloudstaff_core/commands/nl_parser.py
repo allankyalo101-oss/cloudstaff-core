@@ -4,7 +4,8 @@ class NaturalLanguageParser:
     """
     Converts simple natural language instructions into
     structured command strings for the CommandRouter.
-    Enforces intent-safe parsing.
+    Enforces intent-safe parsing and deterministic
+    client entity extraction.
     """
 
     def parse(self, text: str) -> str:
@@ -14,7 +15,7 @@ class NaturalLanguageParser:
         t = text.strip()
         tl = t.lower()
 
-        name = self._extract_name(t)
+        name = self._extract_client_name(t)
 
         # Onboarding
         if re.search(r"\b(onboard|add|register)\b", tl):
@@ -48,12 +49,37 @@ class NaturalLanguageParser:
 
         return ""
 
-    def _extract_name(self, text: str) -> str:
+    def _extract_client_name(self, text: str) -> str:
+        """
+        Extracts client name using explicit linguistic markers.
+        Priority:
+        1. 'client X'
+        2. 'for X'
+        3. 'with X'
+        4. 'to X'
+        5. Last Title-cased word fallback
+        """
+
+        patterns = [
+            r"\bclient\s+([A-Z][a-z]+)",
+            r"\bfor\s+([A-Z][a-z]+)",
+            r"\bwith\s+([A-Z][a-z]+)",
+            r"\bto\s+([A-Z][a-z]+)",
+            r"\bnamed\s+([A-Z][a-z]+)"
+        ]
+
+        for pattern in patterns:
+            match = re.search(pattern, text)
+            if match:
+                return match.group(1)
+
+        # Fallback: last capitalized word
         words = text.split()
-        for w in words:
+        for w in reversed(words):
             if w.istitle():
                 return w
-        return words[-1].capitalize()
+
+        return "Unknown"
 
     def _extract_amount(self, text: str):
         match = re.search(r"\b\d+(\.\d+)?\b", text)
