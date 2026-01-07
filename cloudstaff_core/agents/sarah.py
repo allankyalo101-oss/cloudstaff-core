@@ -1,272 +1,170 @@
 # cloudstaff_core/agents/sarah.py
-# ==============================
-# Sarah Agent – Administrative Workflow Assistant
-# Day 3 – Persistent Execution
-# ==============================
+# =========================================
+# Sarah Agent – Ledger-Driven Administrator
+# Day 4 – Economic Authority Locked
+# =========================================
 
 import re
 import sqlite3
 import json
 from datetime import datetime
-from typing import List, Dict
 import os
+from typing import Dict, List
 
-DB_FILE = os.path.join(os.path.dirname(__file__), "sarah_state.db")
+DB_FILE = os.path.join(os.path.dirname(__file__), "..", "..", "sarah.db")
+
 
 class Sarah:
-    # ------------------------------
-    # Initialization
-    # ------------------------------
     def __init__(self):
         self.name = "Sarah"
         self.role = "Administrative AI Assistant"
 
-        # Explicit workflow state
+        # Workflow state
         self.workflow_state = "idle"
 
-        # Session memory (non-authoritative)
-        self.memory: List[Dict] = []
-
-        # Append-only administrative ledger
+        # Audit ledger (in-memory mirror)
         self.ledger: List[Dict] = []
 
-        # Last known entities
-        self.last_client = None
-        self.last_meeting = None
-
-        # System commands
-        self.system_commands = {"status", "report", "reset"}
-
-        # ------------------------------
-        # Initialize SQLite
-        # ------------------------------
+        # SQLite connection
         self.conn = sqlite3.connect(DB_FILE)
         self.conn.row_factory = sqlite3.Row
-        self._init_db()
+
         self._load_state()
 
-    # ------------------------------
-    # Database Setup
-    # ------------------------------
-    def _init_db(self):
-        c = self.conn.cursor()
-        c.execute("""
-            CREATE TABLE IF NOT EXISTS workflow (
-                id INTEGER PRIMARY KEY,
-                state TEXT NOT NULL,
-                last_update TEXT NOT NULL
-            )
-        """)
-        c.execute("""
-            CREATE TABLE IF NOT EXISTS ledger (
-                id INTEGER PRIMARY KEY,
-                timestamp TEXT NOT NULL,
-                type TEXT NOT NULL,
-                details TEXT
-            )
-        """)
-        self.conn.commit()
-
+    # -------------------------------------
+    # DATABASE STATE
+    # -------------------------------------
     def _load_state(self):
-        # Load workflow state
         c = self.conn.cursor()
-        c.execute("SELECT state FROM workflow ORDER BY id DESC LIMIT 1")
+
+        # Load last workflow state
+        c.execute(
+            "SELECT state FROM ledger ORDER BY id DESC LIMIT 1"
+        )
         row = c.fetchone()
-        if row:
+        if row and row["state"]:
             self.workflow_state = row["state"]
 
-        # Load ledger
+        # Load ledger mirror
         c.execute("SELECT * FROM ledger ORDER BY id ASC")
-        rows = c.fetchall()
-        self.ledger = []
-        for r in rows:
-            entry = {
-                "timestamp": r["timestamp"],
-                "type": r["type"],
-                "details": json.loads(r["details"]) if r["details"] else {}
-            }
-            self.ledger.append(entry)
+        self.ledger = [dict(r) for r in c.fetchall()]
 
-    # ------------------------------
-    # Internal Utilities
-    # ------------------------------
-    def _log(self, action_type: str, details: Dict = None):
-        details = details or {}
-        timestamp = datetime.utcnow().isoformat()
-        entry = {
-            "timestamp": timestamp,
-            "state": self.workflow_state,
-            "type": action_type,
-            "details": details
-        }
-        self.ledger.append(entry)
-
-        # Persist immediately
+    def _persist(
+        self,
+        client_name: str,
+        transaction_type: str,
+        amount: float,
+        state: str,
+        description: str,
+        notes: str = ""
+    ):
         c = self.conn.cursor()
         c.execute(
-            "INSERT INTO ledger (timestamp, type, details, state) VALUES (?, ?, ?, ?)",
-            (timestamp, action_type, json.dumps(details), self.workflow_state)
+            """
+            INSERT INTO ledger
+            (client_name, transaction_type, amount, date, notes, state, description)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                client_name,
+                transaction_type,
+                amount,
+                datetime.utcnow().isoformat(),
+                notes,
+                state,
+                description
+            )
         )
         self.conn.commit()
+        self.workflow_state = state
+        self._load_state()
 
-        # Persist workflow state
-        c.execute(
-            "INSERT INTO workflow (state, last_update) VALUES (?, ?)",
-            (self.workflow_state, timestamp)
+    # -------------------------------------
+    # CORE ACTIONS
+    # -------------------------------------
+    def client_intake(self, name: str):
+        self._persist(
+            client_name=name,
+            transaction_type="INTAKE",
+            amount=0.0,
+            state="intake_completed",
+            description="Client onboarded"
         )
-        self.conn.commit()
+        return f"Client intake completed for {name}."
 
-    def _in_scope(self, user_input: str) -> bool:
-        keywords = [
-            "email", "meeting", "schedule",
-            "summarize", "summary",
-            "client intake", "intake",
-            "follow up", "follow-up",
-            "report", "status"
-        ]
-        return any(k in user_input.lower() for k in keywords)
+    def schedule_meeting(self, name: str):
+        if self.workflow_state != "intake_completed":
+            return f"Illegal action 'schedule_meeting' from state '{self.workflow_state}'."
 
-    # ------------------------------
-    # System Commands
-    # ------------------------------
-    def _handle_status(self) -> str:
-        self._log("status_requested")
-        return (
-            f"System Status:\n"
-            f"- Current state: {self.workflow_state}\n"
-            f"- Logged actions: {len(self.ledger)}"
+        self._persist(
+            client_name=name,
+            transaction_type="MEETING",
+            amount=0.0,
+            state="meeting_scheduled",
+            description="Meeting scheduled"
         )
+        return f"Meeting scheduled for {name}."
 
-    def _handle_report(self) -> str:
-        self._log("report_generated")
-        lines = [
-            f"Administrative Report – {self.name}",
-            "-" * 40,
-            f"Current workflow state: {self.workflow_state}",
-            "",
-            "Recorded actions:"
-        ]
-        if not self.ledger:
-            lines.append("- No actions recorded.")
-        else:
-            for i, entry in enumerate(self.ledger, start=1):
-                lines.append(
-                    f"{i}. [{entry['timestamp']}] "
-                    f"{entry['type']} | State: {entry['state']}"
-                )
-        lines.append("")
-        lines.append("Next expected step:")
-        if self.workflow_state == "intake_completed":
-            lines.append("- Schedule a meeting.")
-        elif self.workflow_state == "meeting_scheduled":
-            lines.append("- Send a follow-up email.")
-        elif self.workflow_state == "follow_up_sent":
-            lines.append("- Await further administrative instruction.")
-        else:
-            lines.append("- Await administrative task.")
-        return "\n".join(lines)
-
-    def _handle_reset(self) -> str:
-        self.workflow_state = "idle"
-        self.memory.clear()
-        self.ledger.clear()
-        self.last_client = None
-        self.last_meeting = None
-        c = self.conn.cursor()
-        c.execute("DELETE FROM workflow")
-        c.execute("DELETE FROM ledger")
-        self.conn.commit()
-        return "System reset complete. Workflow and records cleared."
-
-    # ------------------------------
-    # Client Intake
-    # ------------------------------
-    def handle_client_intake(self) -> str:
-        self.workflow_state = "intake_completed"
-        self._log("client_intake_completed")
-        return (
-            "Client intake initiated.\n\n"
-            "Please provide:\n"
-            "1. Full Name\n"
-            "2. Company Name\n"
-            "3. Email Address\n"
-            "4. Phone Number\n"
-            "5. Nature of Inquiry\n\n"
-            "Once received, a meeting can be scheduled."
-        )
-
-    # ------------------------------
-    # Meeting Scheduler
-    # ------------------------------
-    def schedule_meeting(self, user_input: str) -> str:
-        date = "Friday"
-        time = "10:00 AM"
-        date_match = re.search(r'on ([\w\s\d]+)', user_input, re.IGNORECASE)
-        time_match = re.search(r'at (\d{1,2}(:\d{2})?\s?(AM|PM)?)', user_input, re.IGNORECASE)
-        if date_match:
-            date = date_match.group(1).strip()
-        if time_match:
-            time = time_match.group(1).strip()
-        meeting = {"date": date, "time": time}
-        self.last_meeting = meeting
-        self.workflow_state = "meeting_scheduled"
-        self._log("meeting_scheduled", meeting)
-        return f"Meeting successfully scheduled on {date} at {time}.\nYou may request a follow-up when appropriate."
-
-    # ------------------------------
-    # Follow-Up Email
-    # ------------------------------
-    def send_follow_up(self) -> str:
+    def send_follow_up(self, name: str):
         if self.workflow_state != "meeting_scheduled":
             return f"Illegal action 'send_follow_up' from state '{self.workflow_state}'."
-        self.workflow_state = "follow_up_sent"
-        self._log("follow_up_sent")
-        return (
-            "Subject: Thank You for the Meeting\n\n"
-            "Dear [Client Name],\n\n"
-            "Thank you for taking the time to meet.\n"
-            "Please let me know if you require any additional information.\n\n"
-            f"Best regards,\n{self.name}"
+
+        self._persist(
+            client_name=name,
+            transaction_type="FOLLOW_UP",
+            amount=0.0,
+            state="follow_up_sent",
+            description="Follow-up email sent"
+        )
+        return f"Follow-up sent to {name}."
+
+    def record_invoice(self, name: str, amount: float):
+        self._persist(
+            client_name=name,
+            transaction_type="INVOICE",
+            amount=amount,
+            state="invoice_issued",
+            description="Invoice recorded"
+        )
+        return f"Invoice of {amount} recorded for {name}."
+
+    def record_payment(self, name: str, amount: float):
+        if not any(
+            r["client_name"] == name and r["transaction_type"] == "INVOICE"
+            for r in self.ledger
+        ):
+            return "Payment rejected: no invoice exists."
+
+        self._persist(
+            client_name=name,
+            transaction_type="PAYMENT",
+            amount=amount,
+            state="payment_received",
+            description="Payment received"
+        )
+        return f"Payment of {amount} received from {name}."
+
+    # -------------------------------------
+    # REPORTING
+    # -------------------------------------
+    def report_client(self, name: str):
+        rows = [r for r in self.ledger if r["client_name"] == name]
+        if not rows:
+            return f"No records for {name}."
+
+        total_invoiced = sum(
+            r["amount"] for r in rows if r["transaction_type"] == "INVOICE"
+        )
+        total_paid = sum(
+            r["amount"] for r in rows if r["transaction_type"] == "PAYMENT"
         )
 
-    # ------------------------------
-    # Summarization
-    # ------------------------------
-    def summarize_text(self, text: str) -> str:
-        self._log("summary_generated")
-        sentences = re.split(r'(?<=[.!?])\s+', text.strip())
-        return "\n".join(f"- {s}" for s in sentences if s)
+        return (
+            f"Client Report: {name}\n"
+            f"- Invoiced: {total_invoiced}\n"
+            f"- Paid: {total_paid}\n"
+            f"- Balance: {total_invoiced - total_paid}"
+        )
 
-    # ------------------------------
-    # Main Response Handler
-    # ------------------------------
-    def respond(self, user_input: str) -> str:
-        clean = user_input.strip().lower()
-
-        if clean in self.system_commands:
-            if clean == "status":
-                return self._handle_status()
-            elif clean == "report":
-                return self._handle_report()
-            elif clean == "reset":
-                return self._handle_reset()
-
-        if not self._in_scope(user_input):
-            return "Out of scope."
-
-        # Deterministic routing
-        if "client intake" in clean or clean == "intake":
-            return self.handle_client_intake()
-        elif "schedule" in clean or "meeting" in clean:
-            return self.schedule_meeting(user_input)
-        elif "follow up" in clean or "follow-up" in clean or "email" in clean:
-            return self.send_follow_up()
-        elif "summarize" in clean or "summary" in clean:
-            content = re.sub(r'summarize|summary', '', user_input, flags=re.I).strip()
-            return self.summarize_text(content)
-        else:
-            return "Administrative request acknowledged."
-
-# ==============================
-# End of Sarah Agent – Day 3
-# ==============================
+    def report_all(self):
+        return f"Ledger contains {len(self.ledger)} total records."
