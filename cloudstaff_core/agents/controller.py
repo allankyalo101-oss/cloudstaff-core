@@ -31,7 +31,10 @@ class SarahController:
             return self.sarah.respond("client intake")
 
         if command == Command.SCHEDULE_MEETING:
-            return self.sarah.respond(payload or "schedule meeting")
+            text = "schedule meeting"
+            if payload:
+                text += f" {payload}"
+            return self.sarah.respond(text)
 
         if command == Command.SEND_FOLLOW_UP:
             return self.sarah.respond("send follow up")
