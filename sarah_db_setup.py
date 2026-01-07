@@ -1,34 +1,48 @@
 import sqlite3
 
-# Connect to the database
+# Connect to the SQLite database (will create if it doesn't exist)
 conn = sqlite3.connect("sarah.db")
 c = conn.cursor()
 
-# Add 'description' column if it does not exist
-try:
-    c.execute("ALTER TABLE ledger ADD COLUMN description TEXT")
-    print("✅ 'description' column added to 'ledger'")
-except sqlite3.OperationalError:
-    print("ℹ 'description' column already exists")
+# Create ledger table if it doesn't exist
+c.execute("""
+CREATE TABLE IF NOT EXISTS ledger (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    client_name TEXT NOT NULL,
+    transaction_type TEXT,
+    amount REAL,
+    date TEXT,
+    notes TEXT,
+    state TEXT,
+    description TEXT
+)
+""")
+conn.commit()
+print("✅ Ledger table exists with all necessary columns.")
 
-# Sample entries to insert
+# Sample entries with client_name included
 sample_entries = [
-    ("pending", "Order from Alice - 2 items"),
-    ("completed", "Order from Bob - 1 item"),
-    ("pending", "Order from Charlie - 5 items")
+    ("Alice", "Invoice", 250.0, "2026-01-01", "First payment", "pending", "Initial invoice"),
+    ("Bob", "Payment", 500.0, "2026-01-02", "Completed payment", "complete", "Second transaction"),
+    ("Charlie", "Invoice", 750.0, "2026-01-03", "Follow-up invoice", "pending", "Third transaction")
 ]
 
-# Insert sample entries into the ledger
-c.executemany("INSERT INTO ledger (state, description) VALUES (?, ?)", sample_entries)
-conn.commit()
-print("✅ Sample ledger entries inserted successfully.")
+# Insert sample entries
+try:
+    c.executemany("""
+    INSERT INTO ledger (client_name, transaction_type, amount, date, notes, state, description)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+    """, sample_entries)
+    conn.commit()
+    print("✅ Sample entries inserted successfully.")
+except sqlite3.IntegrityError as e:
+    print("⚠️ IntegrityError:", e)
 
-# Verify current table state
+# Verify inserted data
 c.execute("SELECT * FROM ledger")
 rows = c.fetchall()
-print("Current ledger table contents:")
 for row in rows:
     print(row)
 
-# Close the connection
+# Close connection
 conn.close()
