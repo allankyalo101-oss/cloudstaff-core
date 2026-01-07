@@ -6,12 +6,12 @@ def run():
     parser = NaturalLanguageParser()
 
     inputs = [
-        "Please onboard client Ethan",
-        "Schedule a meeting with Ethan",
-        "Send a follow up to Ethan",
-        "Invoice Ethan 400",
-        "Ethan paid 200",
-        "Give me a report for Ethan"
+        "Please onboard client Noah",
+        "Schedule a meeting with Noah",
+        "Send a follow up to Noah",
+        "Invoice Noah 400",
+        "Noah paid 200",
+        "Give me a report for Noah"
     ]
 
     for text in inputs:
