@@ -1,7 +1,11 @@
 # ==============================
 # Sarah Day 1 Stress Test with Verification
 # ==============================
+import sys
+import os
+sys.path.insert(0, os.path.abspath("./cloudstaff_core"))
 
+from agents.sarah import Sarah
 from cloudstaff_core.agents.sarah import Sarah
 
 # Initialize Sarah
@@ -118,3 +122,4 @@ print_header("Stress Test Completed")
 print("Final Workflow State:", sarah.workflow_state)
 print("Total Memory Entries:", len(sarah.memory))
 print("Total Ledger Entries:", len(sarah.ledger))
+
