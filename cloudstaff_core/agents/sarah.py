@@ -104,8 +104,8 @@ class Sarah:
         # Persist immediately
         c = self.conn.cursor()
         c.execute(
-            "INSERT INTO ledger (timestamp, type, details) VALUES (?, ?, ?)",
-            (timestamp, action_type, json.dumps(details))
+            "INSERT INTO ledger (timestamp, type, details, state) VALUES (?, ?, ?, ?)",
+            (timestamp, action_type, json.dumps(details), self.workflow_state)
         )
         self.conn.commit()
 
