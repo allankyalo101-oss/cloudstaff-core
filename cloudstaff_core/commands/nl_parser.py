@@ -4,39 +4,47 @@ class NaturalLanguageParser:
     """
     Converts simple natural language instructions into
     structured command strings for the CommandRouter.
+    Enforces intent-safe parsing.
     """
 
     def parse(self, text: str) -> str:
         if not text or not isinstance(text, str):
             return ""
 
-        t = text.lower().strip()
+        t = text.strip()
+        tl = t.lower()
+
+        name = self._extract_name(t)
 
         # Onboarding
-        if re.search(r"(onboard|add|register).*(client|customer)?", t):
-            return f"onboard {self._extract_name(t)}"
+        if re.search(r"\b(onboard|add|register)\b", tl):
+            return f"onboard {name}"
 
         # Meeting
-        if re.search(r"(schedule|set).*(meeting|call)", t):
-            return f"meet {self._extract_name(t)}"
+        if re.search(r"\b(schedule|set)\b.*\b(meeting|call)\b", tl):
+            return f"meet {name}"
 
         # Follow-up
-        if re.search(r"(follow up|follow-up|check in)", t):
-            return f"followup {self._extract_name(t)}"
+        if re.search(r"\b(follow up|follow-up|check in)\b", tl):
+            return f"followup {name}"
 
-        # Invoice
-        if "invoice" in t:
+        # Invoice (amount REQUIRED)
+        if "invoice" in tl:
             amount = self._extract_amount(t)
-            return f"invoice {self._extract_name(t)} {amount}"
+            if amount is None:
+                return "error missing_amount invoice"
+            return f"invoice {name} {amount}"
 
-        # Payment
-        if "payment" in t or "paid" in t:
+        # Payment (amount REQUIRED)
+        if "payment" in tl or "paid" in tl:
             amount = self._extract_amount(t)
-            return f"payment {self._extract_name(t)} {amount}"
+            if amount is None:
+                return "error missing_amount payment"
+            return f"payment {name} {amount}"
 
         # Report
-        if "report" in t or "summary" in t:
-            return f"report {self._extract_name(t)}"
+        if "report" in tl or "summary" in tl:
+            return f"report {name}"
 
         return ""
 
@@ -47,6 +55,8 @@ class NaturalLanguageParser:
                 return w
         return words[-1].capitalize()
 
-    def _extract_amount(self, text: str) -> float:
-        matches = re.findall(r"\d+(\.\d+)?", text)
-        return float(matches[0]) if matches else 0.0
+    def _extract_amount(self, text: str):
+        match = re.search(r"\b\d+(\.\d+)?\b", text)
+        if not match:
+            return None
+        return float(match.group())
