@@ -1,12 +1,14 @@
-import sqlite3
-from cloudstaff_core.agents.sarah import Sarah
+# cloudstaff_core/commands/command_router.py
+# =========================================
+# Command Router – Workflow + Economic Gatekeeper
+# =========================================
 
-DB_PATH = "sarah.db"
+from cloudstaff_core.agents.sarah import Sarah
 
 
 class CommandRouter:
     """
-    Enforces per-client workflow transitions.
+    Enforces per-client workflow and economic legality.
     """
 
     TRANSITION_RULES = {
@@ -15,7 +17,7 @@ class CommandRouter:
         "meeting_scheduled": ["followup"],
         "follow_up_sent": ["invoice"],
         "invoice_issued": ["payment"],
-        "payment_received": [],
+        "payment_received": ["payment"],  # allow partial payments
     }
 
     def __init__(self):
