@@ -1,7 +1,7 @@
 # cloudstaff_core/agents/sarah.py
 # =========================================
-# Sarah Agent – Ledger-Driven Economic Authority
-# Stateless, Per-Client Intelligence
+# Sarah Agent – Ledger Executor & Reporter
+# Stateless, Deterministic, No Policy Logic
 # =========================================
 
 import sqlite3
@@ -17,7 +17,7 @@ class Sarah:
         self.conn.row_factory = sqlite3.Row
 
     # -------------------------------------
-    # STATE & FINANCIAL READ (READ-ONLY)
+    # READ MODELS
     # -------------------------------------
     def get_last_state(self, client_name: str):
         c = self.conn.cursor()
@@ -36,12 +36,8 @@ class Sarah:
         )
         rows = c.fetchall()
 
-        invoiced = sum(
-            r["amount"] for r in rows if r["transaction_type"] == "INVOICE"
-        )
-        paid = sum(
-            r["amount"] for r in rows if r["transaction_type"] == "PAYMENT"
-        )
+        invoiced = sum(r["amount"] for r in rows if r["transaction_type"] == "INVOICE")
+        paid = sum(r["amount"] for r in rows if r["transaction_type"] == "PAYMENT")
 
         return {
             "invoiced": invoiced,
@@ -50,7 +46,7 @@ class Sarah:
         }
 
     # -------------------------------------
-    # LEDGER WRITE (AUTHORITATIVE)
+    # LEDGER WRITE (NO VALIDATION)
     # -------------------------------------
     def _persist(
         self,
@@ -81,7 +77,7 @@ class Sarah:
         self.conn.commit()
 
     # -------------------------------------
-    # ACTIONS (NO WORKFLOW ENFORCEMENT)
+    # COMMAND EXECUTION (ASSUMED LEGAL)
     # -------------------------------------
     def client_intake(self, name: str):
         self._persist(name, "INTAKE", 0.0, "intake_completed", "Client onboarded")
@@ -96,24 +92,10 @@ class Sarah:
         return f"Follow-up sent to {name}."
 
     def record_invoice(self, name: str, amount: float):
-        self._persist(name, "INVOICE", amount, "invoice_issued", "Invoice recorded")
+        self._persist(name, "INVOICE", amount, "invoice_issued", "Invoice issued")
         return f"Invoice of {amount} recorded for {name}."
 
     def record_payment(self, name: str, amount: float):
-        financials = self.get_financials(name)
-
-        if amount <= 0:
-            return "Payment rejected: amount must be positive."
-
-        if financials["balance"] <= 0:
-            return "Payment rejected: no outstanding balance."
-
-        if amount > financials["balance"]:
-            return (
-                f"Payment rejected: amount exceeds balance "
-                f"({financials['balance']})."
-            )
-
         self._persist(name, "PAYMENT", amount, "payment_received", "Payment received")
         return f"Payment of {amount} received from {name}."
 

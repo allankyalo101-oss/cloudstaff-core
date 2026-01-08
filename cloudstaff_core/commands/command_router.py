@@ -1,17 +1,14 @@
 # cloudstaff_core/commands/command_router.py
 # =========================================
-# Command Router – Workflow + Economic Gatekeeper
-# Idempotent, Ledger-Validated
+# Command Router – Workflow & Economic Authority
 # =========================================
 
 from cloudstaff_core.agents.sarah import Sarah
-import sqlite3
 
 
 class CommandRouter:
     """
-    Enforces per-client workflow, economic legality,
-    and idempotency guarantees.
+    Enforces workflow transitions AND economic invariants.
     """
 
     TRANSITION_RULES = {
@@ -20,17 +17,12 @@ class CommandRouter:
         "meeting_scheduled": ["followup"],
         "follow_up_sent": ["invoice"],
         "invoice_issued": ["payment"],
-        "payment_received": ["payment"],  # allow partial payments
+        "payment_received": ["payment"],  # partials allowed
     }
 
     def __init__(self):
         self.sarah = Sarah()
-        self.conn = self.sarah.conn
-        self.conn.row_factory = sqlite3.Row
 
-    # -------------------------------------
-    # PUBLIC ENTRY
-    # -------------------------------------
     def execute(self, command: str):
         parts = command.strip().split()
         if not parts:
@@ -38,7 +30,7 @@ class CommandRouter:
 
         action = parts[0].lower()
 
-        # REPORT IS ALWAYS ALLOWED (READ-ONLY)
+        # REPORT IS ALWAYS ALLOWED
         if action == "report":
             if len(parts) < 2:
                 return "Missing client name"
@@ -56,11 +48,30 @@ class CommandRouter:
         if action not in allowed:
             return f"Illegal action '{action}' from state '{last_state}'."
 
-        # IDEMPOTENCY GUARDS
-        if self._is_duplicate_action(client, action, amount):
-            return f"Ignored duplicate '{action}' for {client}."
+        # ----------------------------------
+        # ECONOMIC INVARIANTS (AUTHORITATIVE)
+        # ----------------------------------
+        if action == "payment":
+            if amount <= 0:
+                return "Payment rejected: amount must be positive."
 
-        # ROUTE ACTION
+            financials = self.sarah.get_financials(client)
+
+            if financials["invoiced"] <= 0:
+                return "Payment rejected: no invoice issued."
+
+            if financials["balance"] <= 0:
+                return "Payment rejected: balance already settled."
+
+            if amount > financials["balance"]:
+                return (
+                    f"Payment rejected: amount exceeds balance "
+                    f"({financials['balance']})."
+                )
+
+        # ----------------------------------
+        # EXECUTION
+        # ----------------------------------
         if action == "onboard":
             return self.sarah.client_intake(client)
         if action == "meet":
@@ -73,43 +84,3 @@ class CommandRouter:
             return self.sarah.record_payment(client, amount)
 
         return f"Unknown action '{action}'."
-
-    # -------------------------------------
-    # IDEMPOTENCY LOGIC
-    # -------------------------------------
-    def _is_duplicate_action(self, client: str, action: str, amount: float) -> bool:
-        """
-        Prevents duplicate economic or workflow actions
-        based on most recent ledger entry.
-        """
-        c = self.conn.cursor()
-        c.execute(
-            """
-            SELECT transaction_type, amount
-            FROM ledger
-            WHERE client_name = ?
-            ORDER BY id DESC
-            LIMIT 1
-            """,
-            (client,),
-        )
-        row = c.fetchone()
-        if not row:
-            return False
-
-        last_type = row["transaction_type"].lower()
-        last_amount = row["amount"]
-
-        # Duplicate workflow actions
-        if action in {"onboard", "meet", "followup"} and last_type == action.upper():
-            return True
-
-        # Duplicate invoice (same amount twice)
-        if action == "invoice" and last_type == "INVOICE" and last_amount == amount:
-            return True
-
-        # Duplicate payment (same amount twice)
-        if action == "payment" and last_type == "PAYMENT" and last_amount == amount:
-            return True
-
-        return False
