@@ -6,12 +6,29 @@ def run():
     parser = NaturalLanguageParser()
 
     inputs = [
+        # Noah begins
         "Please onboard client Noah",
+
+        # Olivia begins before Noah finishes
+        "Please onboard client Olivia",
+
+        # Interleaved progression
         "Schedule a meeting with Noah",
+        "Schedule a meeting with Olivia",
+
         "Send a follow up to Noah",
+        "Send a follow up to Olivia",
+
+        # Diverging economics
         "Invoice Noah 400",
+        "Invoice Olivia 1000",
+
         "Noah paid 200",
-        "Give me a report for Noah"
+        "Olivia paid 1000",
+
+        # Reports must be isolated and correct
+        "Give me a report for Noah",
+        "Give me a report for Olivia",
     ]
 
     for text in inputs:
@@ -19,7 +36,7 @@ def run():
         print(f"> {text}")
         print(f"→ {command}")
         print(router.execute(command))
-        print("-" * 40)
+        print("-" * 50)
 
 if __name__ == "__main__":
     run()
