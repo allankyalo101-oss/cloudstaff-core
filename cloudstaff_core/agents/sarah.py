@@ -1,12 +1,10 @@
 # cloudstaff_core/agents/sarah.py
 # =========================================
 # Sarah Agent – Ledger-Driven Administrator
-# Day 4 – Economic Authority Locked
+# Domain Authority (Single Source of Truth)
 # =========================================
 
-import re
 import sqlite3
-import json
 from datetime import datetime
 import os
 from typing import Dict, List
@@ -19,35 +17,31 @@ class Sarah:
         self.name = "Sarah"
         self.role = "Administrative AI Assistant"
 
-        # Workflow state
-        self.workflow_state = "idle"
-
-        # Audit ledger (in-memory mirror)
-        self.ledger: List[Dict] = []
-
         # SQLite connection
         self.conn = sqlite3.connect(DB_FILE)
         self.conn.row_factory = sqlite3.Row
 
-        self._load_state()
+        # In-memory ledger mirror
+        self.ledger: List[Dict] = []
+
+        self._load_ledger()
 
     # -------------------------------------
-    # DATABASE STATE
+    # INTERNAL STATE MANAGEMENT
     # -------------------------------------
-    def _load_state(self):
+    def _load_ledger(self):
         c = self.conn.cursor()
-
-        # Load last workflow state
-        c.execute(
-            "SELECT state FROM ledger ORDER BY id DESC LIMIT 1"
-        )
-        row = c.fetchone()
-        if row and row["state"]:
-            self.workflow_state = row["state"]
-
-        # Load ledger mirror
         c.execute("SELECT * FROM ledger ORDER BY id ASC")
         self.ledger = [dict(r) for r in c.fetchall()]
+
+    def get_last_state(self, client_name: str):
+        c = self.conn.cursor()
+        c.execute(
+            "SELECT state FROM ledger WHERE client_name = ? ORDER BY id DESC LIMIT 1",
+            (client_name,),
+        )
+        row = c.fetchone()
+        return row["state"] if row else None
 
     def _persist(
         self,
@@ -56,7 +50,7 @@ class Sarah:
         amount: float,
         state: str,
         description: str,
-        notes: str = ""
+        notes: str = "",
     ):
         c = self.conn.cursor()
         c.execute(
@@ -72,75 +66,78 @@ class Sarah:
                 datetime.utcnow().isoformat(),
                 notes,
                 state,
-                description
-            )
+                description,
+            ),
         )
         self.conn.commit()
-        self.workflow_state = state
-        self._load_state()
+        self._load_ledger()
 
     # -------------------------------------
-    # CORE ACTIONS
+    # CORE ACTIONS (DOMAIN RULED)
     # -------------------------------------
     def client_intake(self, name: str):
+        last_state = self.get_last_state(name)
+        if last_state is not None:
+            return f"Illegal action 'onboard' from state '{last_state}'."
+
         self._persist(
             client_name=name,
             transaction_type="INTAKE",
             amount=0.0,
             state="intake_completed",
-            description="Client onboarded"
+            description="Client onboarded",
         )
         return f"Client intake completed for {name}."
 
     def schedule_meeting(self, name: str):
-        if self.workflow_state != "intake_completed":
-            return f"Illegal action 'schedule_meeting' from state '{self.workflow_state}'."
+        if self.get_last_state(name) != "intake_completed":
+            return f"Illegal action 'meet' from state '{self.get_last_state(name)}'."
 
         self._persist(
             client_name=name,
             transaction_type="MEETING",
             amount=0.0,
             state="meeting_scheduled",
-            description="Meeting scheduled"
+            description="Meeting scheduled",
         )
         return f"Meeting scheduled for {name}."
 
     def send_follow_up(self, name: str):
-        if self.workflow_state != "meeting_scheduled":
-            return f"Illegal action 'send_follow_up' from state '{self.workflow_state}'."
+        if self.get_last_state(name) != "meeting_scheduled":
+            return f"Illegal action 'followup' from state '{self.get_last_state(name)}'."
 
         self._persist(
             client_name=name,
             transaction_type="FOLLOW_UP",
             amount=0.0,
             state="follow_up_sent",
-            description="Follow-up email sent"
+            description="Follow-up email sent",
         )
         return f"Follow-up sent to {name}."
 
     def record_invoice(self, name: str, amount: float):
+        if self.get_last_state(name) != "follow_up_sent":
+            return f"Illegal action 'invoice' from state '{self.get_last_state(name)}'."
+
         self._persist(
             client_name=name,
             transaction_type="INVOICE",
             amount=amount,
             state="invoice_issued",
-            description="Invoice recorded"
+            description="Invoice recorded",
         )
         return f"Invoice of {amount} recorded for {name}."
 
     def record_payment(self, name: str, amount: float):
-        if not any(
-            r["client_name"] == name and r["transaction_type"] == "INVOICE"
-            for r in self.ledger
-        ):
-            return "Payment rejected: no invoice exists."
+        if self.get_last_state(name) != "invoice_issued":
+            return f"Illegal action 'payment' from state '{self.get_last_state(name)}'."
 
         self._persist(
             client_name=name,
             transaction_type="PAYMENT",
             amount=amount,
             state="payment_received",
-            description="Payment received"
+            description="Payment received",
         )
         return f"Payment of {amount} received from {name}."
 
