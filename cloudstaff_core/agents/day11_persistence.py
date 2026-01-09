@@ -1,67 +1,63 @@
-import os
 import json
-import sqlite3
-from datetime import datetime
+from pathlib import Path
 
-BASE_DIR = "cloudstaff_core/storage"
-SNAPSHOT_DIR = os.path.join(BASE_DIR, "snapshots")
-EVENTS_DIR = os.path.join(BASE_DIR, "events")
+EVENTS_PATH = Path("cloudstaff_core/storage/events/events.jsonl")
+SNAPSHOT_PATH = Path("cloudstaff_core/storage/snapshots/latest.json")
 
-SNAPSHOT_PATH = os.path.join(SNAPSHOT_DIR, "latest.json")
-EVENTS_PATH = os.path.join(EVENTS_DIR, "events.jsonl")
+# Pending events in memory
+pending_events = []
 
-DB_PATH = "sarah.db"
+# -------------------------
+# Append a new event
+# -------------------------
+def add_event(event):
+    global pending_events
+    pending_events.append(event)
 
+# -------------------------
+# Flush all events to disk
+# -------------------------
+def flush_events():
+    global pending_events
+    if not pending_events:
+        return
+    with open(EVENTS_PATH, "a") as f:
+        for event in pending_events:
+            f.write(json.dumps(event) + "\n")
+    pending_events.clear()  # memory cleared after persistence
 
-def ensure_dirs():
-    os.makedirs(SNAPSHOT_DIR, exist_ok=True)
-    os.makedirs(EVENTS_DIR, exist_ok=True)
-
-
-def connect_db():
-    return sqlite3.connect(DB_PATH)
-
-
-def compute_state():
-    conn = connect_db()
-    cursor = conn.cursor()
-
-    cursor.execute("""
-        SELECT client_name,
-               SUM(CASE WHEN type='Invoice' THEN amount ELSE 0 END) AS invoiced,
-               SUM(CASE WHEN type='Payment' THEN amount ELSE 0 END) AS paid
-        FROM ledger
-        GROUP BY client_name
-    """)
-
-    state = {}
-    for name, invoiced, paid in cursor.fetchall():
-        invoiced = invoiced or 0.0
-        paid = paid or 0.0
-        state[name] = {
-            "invoiced": invoiced,
-            "paid": paid,
-            "balance": invoiced - paid
-        }
-
-    conn.close()
-    return state
-
-
+# -------------------------
+# Write snapshot
+# -------------------------
 def write_snapshot():
-    ensure_dirs()
-    state = compute_state()
+    # Ensure all events are flushed first
+    flush_events()
 
-    snapshot = {
-        "generated_at": datetime.utcnow().isoformat(),
-        "state": state
-    }
+    # Read full ledger state from events
+    ledger_state = {}
+    if EVENTS_PATH.exists():
+        with open(EVENTS_PATH, "r") as f:
+            for line in f:
+                e = json.loads(line)
+                client = e["client_name"]
+                if client not in ledger_state:
+                    ledger_state[client] = {"invoiced": 0.0, "paid": 0.0, "balance": 0.0}
+                if e["type"] == "Invoice":
+                    ledger_state[client]["invoiced"] += e["amount"]
+                    ledger_state[client]["balance"] += e["amount"]
+                elif e["type"] == "Payment":
+                    ledger_state[client]["paid"] += e["amount"]
+                    ledger_state[client]["balance"] -= e["amount"]
 
+    # Write snapshot
     with open(SNAPSHOT_PATH, "w") as f:
-        json.dump(snapshot, f, indent=2)
+        json.dump(ledger_state, f, indent=4)
 
     print("Snapshot written. Events persisted.")
 
-
+# -------------------------
+# Execution
+# -------------------------
 if __name__ == "__main__":
+    flush_events()
     write_snapshot()

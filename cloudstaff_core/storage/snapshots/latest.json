@@ -1,0 +1,45 @@
+{
+  "generated_at": "2026-01-09T12:13:01.444752",
+  "state": {
+    "Alice": {
+      "invoiced": 3141.0,
+      "paid": 1130.0,
+      "balance": 2011.0
+    },
+    "Bob": {
+      "invoiced": 4906.0,
+      "paid": 2723.0,
+      "balance": 2183.0
+    },
+    "Charlie": {
+      "invoiced": 5491.0,
+      "paid": 2769.0,
+      "balance": 2722.0
+    },
+    "Ethan": {
+      "invoiced": 5260.0,
+      "paid": 3102.0,
+      "balance": 2158.0
+    },
+    "Liam": {
+      "invoiced": 6199.0,
+      "paid": 4104.0,
+      "balance": 2095.0
+    },
+    "Noah": {
+      "invoiced": 5548.0,
+      "paid": 2053.0,
+      "balance": 3495.0
+    },
+    "Olivia": {
+      "invoiced": 7534.0,
+      "paid": 4019.0,
+      "balance": 3515.0
+    },
+    "Sophia": {
+      "invoiced": 4328.0,
+      "paid": 2521.0,
+      "balance": 1807.0
+    }
+  }
+}
