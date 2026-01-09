@@ -1,0 +1,10 @@
+{
+  "Noah": {
+    "invoiced": 300.0,
+    "paid": 150.0
+  },
+  "Olivia": {
+    "invoiced": 700.0,
+    "paid": 400.0
+  }
+}
