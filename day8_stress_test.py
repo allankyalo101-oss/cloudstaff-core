@@ -1,4 +1,4 @@
-from agents.day8_advanced_client import (
+from cloudstaff_core.agents.day8_advanced_client import (
     get_all_clients,
     client_report,
     overdue_clients,
@@ -7,6 +7,7 @@ from agents.day8_advanced_client import (
     notify_overdue,
     notify_high_value
 )
+
 import random
 
 # -----------------------
