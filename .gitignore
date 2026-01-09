@@ -11,3 +11,4 @@ cloudstaff_core/logs/
 .env
 .env
 .env
+venv/
