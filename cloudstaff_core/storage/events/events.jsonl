@@ -6,3 +6,7 @@
 {"timestamp": "2026-01-09T10:48:25.242540", "client": "Noah", "action": "Payment received", "category": "Invoice", "amount": 150.0}
 {"timestamp": "2026-01-09T10:48:25.242642", "client": "Olivia", "action": "Invoice issued", "category": "Invoice", "amount": 700.0}
 {"timestamp": "2026-01-09T10:48:25.242692", "client": "Olivia", "action": "Payment received", "category": "Invoice", "amount": 400.0}
+{"timestamp": "2026-01-09T11:52:19.068637", "client": "Noah", "action": "Invoice issued", "category": "Invoice", "amount": 300.0}
+{"timestamp": "2026-01-09T11:52:19.070055", "client": "Noah", "action": "Payment received", "category": "Invoice", "amount": 150.0}
+{"timestamp": "2026-01-09T11:52:19.070298", "client": "Olivia", "action": "Invoice issued", "category": "Invoice", "amount": 700.0}
+{"timestamp": "2026-01-09T11:52:19.070366", "client": "Olivia", "action": "Payment received", "category": "Invoice", "amount": 400.0}
