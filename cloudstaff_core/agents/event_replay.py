@@ -10,16 +10,40 @@ def sha256(data: str) -> str:
 
 
 def canonical_event_string(event: dict) -> str:
-    """
-    Deterministic representation for hashing.
-    Must match event_chain_guard exactly.
-    """
     filtered = {
         k: event[k]
         for k in sorted(event.keys())
         if k not in ("event_hash", "prev_hash")
     }
     return json.dumps(filtered, sort_keys=True, separators=(",", ":"))
+
+
+def semantic_apply(event: dict, state: dict, line: int):
+    """
+    Deterministic semantic adapter.
+    Converts human events into ledger mutations.
+    """
+
+    client = event.get("client")
+    amount = float(event.get("amount", 0))
+
+    if not client:
+        raise RuntimeError(f"Missing client at line {line}")
+
+    action = event.get("action", "").lower()
+    category = event.get("category", "").lower()
+
+    if category == "invoice" and "issued" in action:
+        state[client] = state.get(client, 0) + amount
+
+    elif category == "invoice" and "payment" in action:
+        state[client] = state.get(client, 0) - amount
+
+    else:
+        raise RuntimeError(
+            f"Unrecognized semantic event at line {line}: "
+            f"category='{category}', action='{action}'"
+        )
 
 
 def replay_events():
@@ -41,8 +65,7 @@ def replay_events():
             if event["prev_hash"] != prev_hash:
                 raise RuntimeError(
                     f"CHAIN BREAK at line {index}: "
-                    f"expected prev_hash={prev_hash}, "
-                    f"found {event['prev_hash']}"
+                    f"expected {prev_hash}, found {event['prev_hash']}"
                 )
 
             event_str = canonical_event_string(event)
@@ -50,32 +73,11 @@ def replay_events():
 
             if event["event_hash"] != expected_hash:
                 raise RuntimeError(
-                    f"TAMPER DETECTED at line {index}: "
-                    f"event_hash mismatch"
+                    f"TAMPER DETECTED at line {index}: hash mismatch"
                 )
 
-            # Apply event
-            event_type = event.get("type")
-
-            if event_type == "credit":
-                client = event["client"]
-                amount = event["amount"]
-                state[client] = state.get(client, 0) + amount
-
-            elif event_type == "debit":
-                client = event["client"]
-                amount = event["amount"]
-                state[client] = state.get(client, 0) - amount
-
-            elif event_type == "set":
-                client = event["client"]
-                amount = event["amount"]
-                state[client] = amount
-
-            else:
-                raise RuntimeError(
-                    f"Unknown event type '{event_type}' at line {index}"
-                )
+            # Semantic application (authoritative)
+            semantic_apply(event, state, index)
 
             prev_hash = event["event_hash"]
 

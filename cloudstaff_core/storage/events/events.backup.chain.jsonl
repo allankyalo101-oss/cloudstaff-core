@@ -1,0 +1,12 @@
+{"timestamp": "2026-01-09T10:45:13.508759", "client_name": "Noah", "event_type": "INVOICE", "amount": 300.0, "source": "normalized_migration"}
+{"timestamp": "2026-01-09T10:45:13.509894", "client_name": "Noah", "event_type": "PAYMENT", "amount": 150.0, "source": "normalized_migration"}
+{"timestamp": "2026-01-09T10:45:13.509979", "client_name": "Olivia", "event_type": "INVOICE", "amount": 700.0, "source": "normalized_migration"}
+{"timestamp": "2026-01-09T10:45:13.510037", "client_name": "Olivia", "event_type": "PAYMENT", "amount": 400.0, "source": "normalized_migration"}
+{"timestamp": "2026-01-09T10:48:25.242303", "client_name": "Noah", "event_type": "INVOICE", "amount": 300.0, "source": "normalized_migration"}
+{"timestamp": "2026-01-09T10:48:25.242540", "client_name": "Noah", "event_type": "PAYMENT", "amount": 150.0, "source": "normalized_migration"}
+{"timestamp": "2026-01-09T10:48:25.242642", "client_name": "Olivia", "event_type": "INVOICE", "amount": 700.0, "source": "normalized_migration"}
+{"timestamp": "2026-01-09T10:48:25.242692", "client_name": "Olivia", "event_type": "PAYMENT", "amount": 400.0, "source": "normalized_migration"}
+{"timestamp": "2026-01-09T11:52:19.068637", "client_name": "Noah", "event_type": "INVOICE", "amount": 300.0, "source": "normalized_migration"}
+{"timestamp": "2026-01-09T11:52:19.070055", "client_name": "Noah", "event_type": "PAYMENT", "amount": 150.0, "source": "normalized_migration"}
+{"timestamp": "2026-01-09T11:52:19.070298", "client_name": "Olivia", "event_type": "INVOICE", "amount": 700.0, "source": "normalized_migration"}
+{"timestamp": "2026-01-09T11:52:19.070366", "client_name": "Olivia", "event_type": "PAYMENT", "amount": 400.0, "source": "normalized_migration"}
