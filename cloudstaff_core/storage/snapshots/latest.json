@@ -1,0 +1,16 @@
+{
+  "generated_at": "2026-01-10T08:02:26.547945",
+  "state": {
+    "Noah": {
+      "invoiced": 900.0,
+      "paid": 450.0,
+      "balance": 450.0
+    },
+    "Olivia": {
+      "invoiced": 2100.0,
+      "paid": 1200.0,
+      "balance": 900.0
+    }
+  },
+  "hash": "eeee6497dc15046dd39d37e7ab2d8e2a1fb4d5cacd8ab93c19dedc6bb424a5e3"
+}
