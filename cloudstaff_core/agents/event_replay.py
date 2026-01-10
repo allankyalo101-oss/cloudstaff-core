@@ -18,20 +18,38 @@ def canonical_event_string(event: dict) -> str:
     return json.dumps(filtered, sort_keys=True, separators=(",", ":"))
 
 
-def semantic_apply(event: dict, state: dict, line: int):
+def resolve_client(event: dict, line: int) -> str:
     """
-    Deterministic semantic adapter.
-    Converts human events into ledger mutations.
+    Canonical client resolver.
+    Supports historical schema drift.
     """
 
     client = event.get("client")
+    client_name = event.get("client_name")
+
+    if client and client_name:
+        if client != client_name:
+            raise RuntimeError(
+                f"Client ambiguity at line {line}: "
+                f"client='{client}' vs client_name='{client_name}'"
+            )
+        return client
+
+    if client:
+        return client
+
+    if client_name:
+        return client_name
+
+    raise RuntimeError(f"Missing client identity at line {line}")
+
+
+def semantic_apply(event: dict, state: dict, line: int):
+    client = resolve_client(event, line)
     amount = float(event.get("amount", 0))
 
-    if not client:
-        raise RuntimeError(f"Missing client at line {line}")
-
-    action = event.get("action", "").lower()
-    category = event.get("category", "").lower()
+    action = str(event.get("action", "")).lower()
+    category = str(event.get("category", "")).lower()
 
     if category == "invoice" and "issued" in action:
         state[client] = state.get(client, 0) + amount
@@ -76,9 +94,7 @@ def replay_events():
                     f"TAMPER DETECTED at line {index}: hash mismatch"
                 )
 
-            # Semantic application (authoritative)
             semantic_apply(event, state, index)
-
             prev_hash = event["event_hash"]
 
     return state
