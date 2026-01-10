@@ -2,7 +2,7 @@ import json
 import hashlib
 from pathlib import Path
 from datetime import datetime
-from agents.event_replay import replay_events
+from cloudstaff-core.agents.event_replay import replay_events
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 SNAPSHOT_DIR = BASE_DIR / "cloudstaff_core" / "storage" / "snapshots"
